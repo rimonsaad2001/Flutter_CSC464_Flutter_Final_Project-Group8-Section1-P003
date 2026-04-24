@@ -12,18 +12,20 @@ class AdminAuthProvider extends ChangeNotifier {
   bool get isLoggedIn => currentUser != null;
 
   AdminAuthProvider() {
-    _authService.authStateChanges.listen((user) {
+    _authService.authStateChanges.listen((_) {
       notifyListeners();
     });
   }
 
   Future<void> signIn(String email, String password) async {
     await _authService.signIn(email, password);
-    notifyListeners();
+  }
+
+  Future<void> signUp(String email, String password) async {
+    await _authService.signUp(email, password);
   }
 
   Future<void> signOut() async {
     await _authService.signOut();
-    notifyListeners();
   }
 }

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/cart_provider.dart';
 import '../models/cart_model.dart';
+import '../widgets/cart_item_widget.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
@@ -27,6 +28,10 @@ class CartPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xfff6f7fb),
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.home),
+          onPressed: () => context.go('/'),
+        ),
         elevation: 0,
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
@@ -50,8 +55,11 @@ class CartPage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.shopping_cart_outlined,
-                      size: 90, color: Colors.grey),
+                  Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 90,
+                    color: Colors.grey,
+                  ),
                   SizedBox(height: 10),
                   Text(
                     'Your cart is empty',
@@ -71,117 +79,27 @@ class CartPage extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final doc = items[index];
                     final cart = CartModel.fromMap(
-                        doc.id, doc.data() as Map<String, dynamic>);
+                      doc.id,
+                      doc.data() as Map<String, dynamic>,
+                    );
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
-                            blurRadius: 10,
-                            spreadRadius: 2,
-                          ),
-                        ],
+                    return CartItemWidget(
+                      item: cart,
+                      onIncrease: () => cartProvider.updateCartItem(
+                        doc.id,
+                        {'quantity': cart.quantity + 1},
                       ),
-                      child: Row(
-                        children: [
-                          // Image
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              cart.imageUrl,
-                              width: 75,
-                              height: 75,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(Icons.image_not_supported),
-                            ),
-                          ),
-
-                          const SizedBox(width: 12),
-
-                          // Details
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  cart.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  '৳ ${cart.price.toStringAsFixed(0)}',
-                                  style: const TextStyle(color: Colors.grey),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  'Subtotal: ৳ ${cart.total.toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    color: Colors.deepPurple,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Quantity controls
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.deepPurple.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              children: [
-                                IconButton(
-                                  onPressed: () => cartProvider.updateCartItem(
-                                    doc.id,
-                                    {'quantity': cart.quantity + 1},
-                                  ),
-                                  icon: const Icon(Icons.add),
-                                  color: Colors.green,
-                                ),
-                                Text(
-                                  '${cart.quantity}',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                IconButton(
-                                  onPressed: () {
-                                    if (cart.quantity > 1) {
-                                      cartProvider.updateCartItem(
-                                        doc.id,
-                                        {'quantity': cart.quantity - 1},
-                                      );
-                                    } else {
-                                      cartProvider.removeFromCart(doc.id);
-                                    }
-                                  },
-                                  icon: const Icon(Icons.remove),
-                                  color: Colors.orange,
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(width: 5),
-
-                          // Delete
-                          IconButton(
-                            onPressed: () =>
-                                cartProvider.removeFromCart(doc.id),
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                          ),
-                        ],
-                      ),
+                      onDecrease: () {
+                        if (cart.quantity > 1) {
+                          cartProvider.updateCartItem(
+                            doc.id,
+                            {'quantity': cart.quantity - 1},
+                          );
+                        } else {
+                          cartProvider.removeFromCart(doc.id);
+                        }
+                      },
+                      onRemove: () => cartProvider.removeFromCart(doc.id),
                     );
                   },
                 ),

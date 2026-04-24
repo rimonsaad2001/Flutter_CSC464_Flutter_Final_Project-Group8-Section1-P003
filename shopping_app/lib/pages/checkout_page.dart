@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../providers/order_provider.dart';
 import '../providers/cart_provider.dart';
@@ -19,11 +21,45 @@ class CheckoutPage extends StatefulWidget {
 
 class _CheckoutPageState extends State<CheckoutPage> {
   final _formKey = GlobalKey<FormState>();
+
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
 
   bool _loading = false;
+  bool _loadingUser = true;
+
+  final user = FirebaseAuth.instance.currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  /// ✅ AUTO FILL USER INFO IF LOGGED IN
+  Future<void> _loadUserData() async {
+    if (user == null) {
+      setState(() => _loadingUser = false);
+      return;
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        _nameController.text = data['name'] ?? '';
+        _phoneController.text = data['phone'] ?? '';
+        _addressController.text = data['address'] ?? '';
+      }
+    } catch (_) {}
+
+    setState(() => _loadingUser = false);
+  }
 
   @override
   void dispose() {
@@ -39,7 +75,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
     setState(() => _loading = true);
 
     try {
-      // Fetch current cart items
       final cartService = CartService();
       final cartSnapshot = await cartService.getCartItems().first;
 
@@ -53,30 +88,32 @@ class _CheckoutPageState extends State<CheckoutPage> {
         };
       }).toList();
 
-      // Place order via provider
       await context.read<OrderProvider>().placeOrder({
+        'userId': user?.uid, // 🔥 IMPORTANT FIX
         'customerName': _nameController.text.trim(),
         'customerPhone': _phoneController.text.trim(),
         'customerAddress': _addressController.text.trim(),
         'items': items,
         'total': widget.total,
-        'status': 'placed',
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Clear cart via provider (uses batch delete)
       await context.read<CartProvider>().clearCart();
 
       if (!mounted) return;
 
       showDialog(
         context: context,
-        barrierDismissible: false,
         builder: (_) => AlertDialog(
           title: const Text('Order placed!'),
           content: const Text('Your order has been successfully placed.'),
           actions: [
             TextButton(
-              onPressed: () => context.go('/'),
+              onPressed: () {
+                Navigator.pop(context);
+                context.go('/');
+              },
               child: const Text('OK'),
             ),
           ],
@@ -94,6 +131,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loadingUser) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xfff6f7fb),
       appBar: AppBar(
@@ -107,7 +150,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
           key: _formKey,
           child: Column(
             children: [
-              // Total box
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -124,9 +166,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 20),
-
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -136,12 +176,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Required' : null,
               ),
-
               const SizedBox(height: 10),
-
               TextFormField(
                 controller: _phoneController,
-                keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
                   labelText: 'Phone number',
                   border: OutlineInputBorder(),
@@ -149,9 +186,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Required' : null,
               ),
-
               const SizedBox(height: 10),
-
               TextFormField(
                 controller: _addressController,
                 maxLines: 3,
@@ -162,9 +197,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Required' : null,
               ),
-
               const Spacer(),
-
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -172,17 +205,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
                   ),
                   onPressed: _loading ? null : _placeOrder,
                   child: _loading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Place order',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                      : const Text('Place order'),
                 ),
               ),
             ],

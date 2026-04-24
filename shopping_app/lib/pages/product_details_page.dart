@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 
 import '../providers/cart_provider.dart';
 import '../models/product_model.dart';
@@ -45,8 +46,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       );
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } finally {
       if (mounted) setState(() => _addingToCart = false);
@@ -71,7 +77,14 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               !snapshot.hasData ||
               !snapshot.data!.exists) {
             return Scaffold(
-              appBar: AppBar(backgroundColor: Colors.deepPurple),
+              appBar: AppBar(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+                leading: IconButton(
+                  icon: const Icon(Icons.home),
+                  onPressed: () => context.go('/'),
+                ),
+              ),
               body: const Center(child: Text('Product not found')),
             );
           }
@@ -83,12 +96,17 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
           return CustomScrollView(
             slivers: [
-              // Collapsible image app bar
+              // 🔥 Sliver App Bar with Home Button
               SliverAppBar(
                 expandedHeight: 280,
                 pinned: true,
                 backgroundColor: Colors.deepPurple,
                 foregroundColor: Colors.white,
+                leading: IconButton(
+                  icon: const Icon(Icons.home),
+                  tooltip: 'Go to Home',
+                  onPressed: () => context.go('/'),
+                ),
                 flexibleSpace: FlexibleSpaceBar(
                   title: Text(
                     product.name,
@@ -103,20 +121,23 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => const ColoredBox(
                       color: Colors.grey,
-                      child: Icon(Icons.image_not_supported,
-                          size: 60, color: Colors.white),
+                      child: Icon(
+                        Icons.image_not_supported,
+                        size: 60,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
               ),
 
+              // Content
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Name
                       Text(
                         product.name,
                         style: const TextStyle(
@@ -124,10 +145,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
-                      // Category
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
@@ -146,10 +164,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 12),
-
-                      // Price
                       Text(
                         '৳ ${product.price.toStringAsFixed(0)}',
                         style: const TextStyle(
@@ -158,10 +173,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
                       const SizedBox(height: 16),
-
-                      // Description
                       const Text(
                         'Description',
                         style: TextStyle(
@@ -169,9 +181,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
                       const SizedBox(height: 6),
-
                       Text(
                         product.description.isNotEmpty
                             ? product.description
@@ -182,10 +192,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           height: 1.5,
                         ),
                       ),
-
                       const SizedBox(height: 32),
-
-                      // Add to cart button
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -193,7 +200,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.deepPurple,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.all(15),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -210,8 +216,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                   ),
                                 )
                               : const Icon(Icons.shopping_cart),
-                          label:
-                              Text(_addingToCart ? 'Adding...' : 'Add to cart'),
+                          label: Text(
+                            _addingToCart ? 'Adding...' : 'Add to cart',
+                          ),
                         ),
                       ),
                     ],

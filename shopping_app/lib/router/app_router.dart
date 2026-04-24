@@ -9,68 +9,127 @@ import '../pages/product_details_page.dart';
 import '../pages/cart_page.dart';
 import '../pages/checkout_page.dart';
 import '../pages/orders_page.dart';
+import '../pages/order_details_page.dart';
+import '../pages/profile_page.dart';
 import '../pages/admin_page.dart';
 import '../pages/login_page.dart';
+import '../pages/signup_page.dart';
 import '../services/auth_service.dart';
+
+final AuthService authService = AuthService();
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
-  redirect: (BuildContext context, GoRouterState state) async {
+
+  // ✅ FIXED: no GoRouterRefreshStream (prevents red line + version crash)
+
+  redirect: (context, state) {
     final user = FirebaseAuth.instance.currentUser;
-    final isGoingToAdmin = state.matchedLocation.startsWith('/admin');
-    final isGoingToLogin = state.matchedLocation == '/login';
+    final isAdmin = authService.isAdmin;
 
-    if (isGoingToAdmin) {
-      // Not logged in → go to login
+    final location = state.matchedLocation;
+
+    final isLogin = location == '/login';
+    final isSignup = location == '/signup';
+    final isAdminRoute = location.startsWith('/admin');
+
+    final protectedRoutes = [
+      '/profile',
+      '/orders',
+      '/checkout',
+      '/cart',
+    ];
+
+    final isProtected = protectedRoutes.contains(location);
+
+    // 🔒 ADMIN PROTECTION
+    if (isAdminRoute) {
       if (user == null) return '/login';
-
-      // Logged in but not admin → go home
-      final authService = AuthService();
-      if (!authService.isAdmin) return '/';
+      if (!isAdmin) return '/';
     }
 
-    // Already logged in as admin, no need to see login page
-    if (isGoingToLogin) {
-      final authService = AuthService();
-      if (authService.isAdmin) return '/admin';
+    // 🔒 USER PROTECTION
+    if (isProtected && user == null) {
+      return '/login';
+    }
+
+    // 🔁 BLOCK LOGIN/SIGNUP IF ALREADY LOGGED IN
+    if ((isLogin || isSignup) && user != null) {
+      return '/';
     }
 
     return null;
   },
+
   routes: [
+    // 🏠 HOME
     GoRoute(
       path: '/',
       builder: (context, state) => const HomePage(),
     ),
+
+    // 📦 PRODUCT DETAILS
     GoRoute(
       path: '/product/:id',
       builder: (context, state) => ProductDetailsPage(
         productId: state.pathParameters['id']!,
       ),
     ),
+
+    // 🛒 CART
     GoRoute(
       path: '/cart',
       builder: (context, state) => const CartPage(),
     ),
+
+    // 💳 CHECKOUT
     GoRoute(
       path: '/checkout',
       builder: (context, state) => CheckoutPage(
         total: (state.extra as double?) ?? 0.0,
       ),
     ),
+
+    // 📦 ORDERS LIST
     GoRoute(
       path: '/orders',
       builder: (context, state) => const OrdersPage(),
     ),
+
+    // 📦 ORDER DETAILS
+    GoRoute(
+      path: '/order/:id',
+      builder: (context, state) => OrderDetailsPage(
+        orderId: state.pathParameters['id']!,
+      ),
+    ),
+
+    // 👤 PROFILE
+    GoRoute(
+      path: '/profile',
+      builder: (context, state) => const ProfilePage(),
+    ),
+
+    // 👨‍💼 ADMIN
     GoRoute(
       path: '/admin',
       builder: (context, state) => const AdminPage(),
     ),
+
+    // 🔐 LOGIN
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginPage(),
     ),
+
+    // 🆕 SIGNUP
+    GoRoute(
+      path: '/signup',
+      builder: (context, state) => const SignupPage(),
+    ),
   ],
+
+  // ❌ ERROR PAGE
   errorBuilder: (context, state) => Scaffold(
     appBar: AppBar(
       backgroundColor: Colors.deepPurple,

@@ -26,6 +26,8 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: const Color(0xfff5f6fa),
+
+      // 🔥 APP BAR (WITH PROFILE BUTTON)
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.deepPurple,
@@ -35,12 +37,28 @@ class _HomePageState extends State<HomePage> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
-          // Cart
+          // 👤 PROFILE BUTTON (NEW)
+          IconButton(
+            icon: const Icon(Icons.person),
+            tooltip: 'Profile',
+            onPressed: () => context.go('/profile'),
+          ),
+
+          // 🧾 ORDERS
+          IconButton(
+            icon: const Icon(Icons.receipt_long),
+            tooltip: 'My Orders',
+            onPressed: () => context.go('/orders'),
+          ),
+
+          // 🛒 CART
           IconButton(
             icon: const Icon(Icons.shopping_cart),
+            tooltip: 'Cart',
             onPressed: () => context.go('/cart'),
           ),
-          // Admin or Login
+
+          // 👨‍💼 ADMIN / LOGIN
           if (auth.isAdmin)
             IconButton(
               icon: const Icon(Icons.admin_panel_settings),
@@ -55,9 +73,10 @@ class _HomePageState extends State<HomePage> {
             ),
         ],
       ),
+
       body: Column(
         children: [
-          // Search bar
+          // 🔍 SEARCH
           Container(
             color: Colors.deepPurple,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -70,7 +89,7 @@ class _HomePageState extends State<HomePage> {
                 hintStyle: const TextStyle(color: Colors.white60),
                 prefixIcon: const Icon(Icons.search, color: Colors.white60),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.15),
+                fillColor: Colors.white.withOpacity(0.15),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -79,7 +98,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // Banner
+          // 🎯 BANNER
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -107,6 +126,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
+          // 🛍 PRODUCTS
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: productProvider.products,
@@ -115,13 +135,8 @@ class _HomePageState extends State<HomePage> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-
                 final allDocs = snapshot.data?.docs ?? [];
 
-                // Filter by search query
                 final docs = _searchQuery.isEmpty
                     ? allDocs
                     : allDocs.where((d) {
@@ -133,15 +148,6 @@ class _HomePageState extends State<HomePage> {
                         return name.contains(_searchQuery) ||
                             category.contains(_searchQuery);
                       }).toList();
-
-                if (docs.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No products found',
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
-                    ),
-                  );
-                }
 
                 return GridView.builder(
                   padding: const EdgeInsets.all(12),
@@ -166,7 +172,7 @@ class _HomePageState extends State<HomePage> {
                           borderRadius: BorderRadius.circular(18),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
+                              color: Colors.black.withOpacity(0.08),
                               blurRadius: 10,
                               spreadRadius: 2,
                             ),
@@ -186,21 +192,16 @@ class _HomePageState extends State<HomePage> {
                                 height: 130,
                                 width: double.infinity,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const SizedBox(
-                                  height: 130,
-                                  child: Icon(Icons.image_not_supported),
-                                ),
                               ),
                             ),
                             Padding(
                               padding: const EdgeInsets.all(8),
                               child: Text(
                                 product.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
                             ),
                             Padding(
@@ -212,34 +213,6 @@ class _HomePageState extends State<HomePage> {
                                   color: Colors.deepPurple,
                                   fontWeight: FontWeight.bold,
                                 ),
-                              ),
-                            ),
-                            const Spacer(),
-                            Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Icon(Icons.favorite_border, size: 18),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.deepPurple,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: const Text(
-                                      'View',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ],
                               ),
                             ),
                           ],

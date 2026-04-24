@@ -1,11 +1,12 @@
 // lib/pages/admin_page.dart
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:typed_data';
+import 'package:go_router/go_router.dart';
 
 import '../services/product_service.dart';
 
@@ -116,6 +117,10 @@ class _AdminPageState extends State<AdminPage> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.home),
+          onPressed: () => context.go('/'),
+        ),
         title: const Text('Admin Panel'),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,

@@ -2,13 +2,23 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/order_provider.dart';
+import '../providers/admin_auth_provider.dart';
 import '../models/order_model.dart';
 
 class OrdersPage extends StatelessWidget {
   const OrdersPage({super.key});
+
+  static const _statuses = [
+    'pending',
+    'placed',
+    'shipped',
+    'delivered',
+    'cancelled',
+  ];
 
   Color _statusColor(String status) {
     switch (status.toLowerCase()) {
@@ -27,38 +37,59 @@ class OrdersPage extends StatelessWidget {
     }
   }
 
+  Future<void> _updateStatus(
+    BuildContext context,
+    String orderId,
+    String newStatus,
+  ) async {
+    await FirebaseFirestore.instance
+        .collection('orders')
+        .doc(orderId)
+        .update({'status': newStatus});
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Status updated to ${newStatus.toUpperCase()}'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final orderProvider = context.read<OrderProvider>();
+    final user = FirebaseAuth.instance.currentUser;
+    final isAdmin = context.watch<AdminAuthProvider>().isAdmin;
+
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text("Please login first")),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('My Orders'),
+        leading: IconButton(
+          icon: const Icon(Icons.home),
+          onPressed: () => context.go('/'),
+        ),
+        title: Text(isAdmin ? 'All Orders' : 'My Orders'),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
-        elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: orderProvider.orders,
+        stream: _getOrdersStream(isAdmin, user.uid),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          final docs = snapshot.data?.docs ?? [];
+          final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(
-              child: Text(
-                'No orders yet',
-                style: TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-            );
+            return const Center(child: Text('No orders yet'));
           }
 
           return ListView.builder(
@@ -72,25 +103,21 @@ class OrdersPage extends StatelessWidget {
 
               final color = _statusColor(order.status);
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Padding(
+              return GestureDetector(
+                onTap: () {
+                  context.go('/order/${order.id}');
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header
+                      // HEADER
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -100,20 +127,14 @@ class OrdersPage extends StatelessWidget {
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.15),
+                              color: color.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               order.status.toUpperCase(),
-                              style: TextStyle(
-                                color: color,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
+                              style: TextStyle(color: color),
                             ),
                           ),
                         ],
@@ -121,51 +142,12 @@ class OrdersPage extends StatelessWidget {
 
                       const SizedBox(height: 6),
 
-                      // Customer info
-                      Text(
-                        order.customerName,
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      Text(
-                        order.customerPhone,
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
+                      Text(order.customerName),
+                      Text(order.customerPhone),
 
                       const SizedBox(height: 10),
 
-                      // Items preview
-                      ...order.items.take(2).map((item) => Text(
-                            '• ${item.name} x${item.quantity}',
-                            style: const TextStyle(color: Colors.grey),
-                          )),
-
-                      if (order.items.length > 2)
-                        const Text(
-                          '• ...more items',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-
-                      const SizedBox(height: 10),
-
-                      // Total
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Total amount',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            '৳ ${order.total.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              color: Colors.deepPurple,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
+                      Text('৳ ${order.total.toStringAsFixed(0)}'),
                     ],
                   ),
                 ),
@@ -175,5 +157,15 @@ class OrdersPage extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Stream<QuerySnapshot> _getOrdersStream(bool isAdmin, String uid) {
+    final collection = FirebaseFirestore.instance.collection('orders');
+
+    if (isAdmin) {
+      return collection.orderBy('createdAt', descending: true).snapshots();
+    } else {
+      return collection.where('userId', isEqualTo: uid).snapshots(); // safe
+    }
   }
 }
