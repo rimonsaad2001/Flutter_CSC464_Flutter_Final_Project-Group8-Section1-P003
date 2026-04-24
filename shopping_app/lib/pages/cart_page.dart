@@ -1,129 +1,203 @@
+// lib/pages/cart_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'checkout_page.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/cart_provider.dart';
+import '../models/cart_model.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
 
-  double total(List<QueryDocumentSnapshot> docs) {
-    double sum = 0;
-    for (var d in docs) {
+  double _calculateTotal(List<QueryDocumentSnapshot> docs) {
+    return docs.fold(0.0, (sum, d) {
       final data = d.data() as Map<String, dynamic>;
       final price = (data['price'] ?? 0).toDouble();
-      final quantity = (data['quantity'] ?? 1) as int;
-      sum += price * quantity;
-    }
-    return sum;
-  }
-
-  Future<void> increaseQty(QueryDocumentSnapshot item) async {
-    final data = item.data() as Map<String, dynamic>;
-    final qty = data['quantity'] ?? 1;
-
-    await item.reference.update({
-      'quantity': qty + 1,
+      final qty = (data['quantity'] ?? 1) as int;
+      return sum + price * qty;
     });
-  }
-
-  Future<void> decreaseQty(QueryDocumentSnapshot item) async {
-    final data = item.data() as Map<String, dynamic>;
-    final qty = data['quantity'] ?? 1;
-
-    if (qty > 1) {
-      await item.reference.update({
-        'quantity': qty - 1,
-      });
-    } else {
-      await item.reference.delete();
-    }
-  }
-
-  Future<void> removeItem(QueryDocumentSnapshot item) async {
-    await item.reference.delete();
   }
 
   @override
   Widget build(BuildContext context) {
+    final cartProvider = context.read<CartProvider>();
+
     return Scaffold(
-      appBar: AppBar(title: const Text("🛒 Cart")),
+      backgroundColor: const Color(0xfff6f7fb),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        title: const Text('My Cart'),
+      ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('cart').snapshots(),
+        stream: cartProvider.cartItems,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("Your cart is empty"));
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          final items = snapshot.data!.docs;
+          final items = snapshot.data?.docs ?? [];
+
+          if (items.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.shopping_cart_outlined,
+                      size: 90, color: Colors.grey),
+                  SizedBox(height: 10),
+                  Text(
+                    'Your cart is empty',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
 
           return Column(
             children: [
               Expanded(
                 child: ListView.builder(
+                  padding: const EdgeInsets.all(12),
                   itemCount: items.length,
                   itemBuilder: (context, index) {
-                    final item = items[index];
-                    final data = item.data() as Map<String, dynamic>;
-                    final price = (data['price'] ?? 0).toDouble();
-                    final quantity = (data['quantity'] ?? 1) as int;
-                    final itemTotal = price * quantity;
+                    final doc = items[index];
+                    final cart = CartModel.fromMap(
+                        doc.id, doc.data() as Map<String, dynamic>);
 
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      child: ListTile(
-                        leading: Image.network(
-                          data['imageUrl'] ?? '',
-                          width: 55,
-                          height: 55,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.image_not_supported),
-                        ),
-                        title: Text(data['name'] ?? ''),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Price: ৳ ${price.toStringAsFixed(0)}"),
-                            Text("Subtotal: ৳ ${itemTotal.toStringAsFixed(0)}"),
-                          ],
-                        ),
-                        trailing: SizedBox(
-                          width: 140,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              IconButton(
-                                onPressed: () => decreaseQty(item),
-                                icon: const Icon(Icons.remove_circle_outline),
-                              ),
-                              Text(
-                                '$quantity',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              IconButton(
-                                onPressed: () => increaseQty(item),
-                                icon: const Icon(Icons.add_circle_outline),
-                              ),
-                              IconButton(
-                                onPressed: () => removeItem(item),
-                                icon: const Icon(Icons.delete, color: Colors.red),
-                              ),
-                            ],
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 10,
+                            spreadRadius: 2,
                           ),
-                        ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          // Image
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              cart.imageUrl,
+                              width: 75,
+                              height: 75,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.image_not_supported),
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          // Details
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  cart.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  '৳ ${cart.price.toStringAsFixed(0)}',
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  'Subtotal: ৳ ${cart.total.toStringAsFixed(0)}',
+                                  style: const TextStyle(
+                                    color: Colors.deepPurple,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Quantity controls
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.deepPurple.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                IconButton(
+                                  onPressed: () => cartProvider.updateCartItem(
+                                    doc.id,
+                                    {'quantity': cart.quantity + 1},
+                                  ),
+                                  icon: const Icon(Icons.add),
+                                  color: Colors.green,
+                                ),
+                                Text(
+                                  '${cart.quantity}',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                IconButton(
+                                  onPressed: () {
+                                    if (cart.quantity > 1) {
+                                      cartProvider.updateCartItem(
+                                        doc.id,
+                                        {'quantity': cart.quantity - 1},
+                                      );
+                                    } else {
+                                      cartProvider.removeFromCart(doc.id);
+                                    }
+                                  },
+                                  icon: const Icon(Icons.remove),
+                                  color: Colors.orange,
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(width: 5),
+
+                          // Delete
+                          IconButton(
+                            onPressed: () =>
+                                cartProvider.removeFromCart(doc.id),
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                          ),
+                        ],
                       ),
                     );
                   },
                 ),
               ),
+
+              // Checkout bar
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  border: const Border(top: BorderSide(color: Colors.grey)),
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
@@ -131,16 +205,17 @@ class CartPage extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          "Total:",
+                          'Total amount',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
-                          "৳ ${total(items).toStringAsFixed(0)}",
+                          '৳ ${_calculateTotal(items).toStringAsFixed(0)}',
                           style: const TextStyle(
                             fontSize: 18,
+                            color: Colors.deepPurple,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -149,16 +224,23 @@ class CartPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
+                      height: 50,
                       child: ElevatedButton(
-                        child: const Text("Checkout"),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => CheckoutPage(total: total(items)),
-                            ),
-                          );
-                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () => context.go(
+                          '/checkout',
+                          extra: _calculateTotal(items),
+                        ),
+                        child: const Text(
+                          'Proceed to checkout',
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
                     ),
                   ],
