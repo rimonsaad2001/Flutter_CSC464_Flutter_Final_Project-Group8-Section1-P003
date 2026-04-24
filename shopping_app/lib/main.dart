@@ -295,6 +295,15 @@ class CheckoutPage extends StatelessWidget {
   }
 }
 
+///========================
+///home screen
+///========================
+home: FirebaseAuth.instance.currentUser == null
+    ? LoginScreen()
+    : const HomeScreen(),
+
+
+
 /// =======================
 /// ORDER HISTORY
 /// =======================
