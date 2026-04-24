@@ -3,10 +3,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/admin_auth_provider.dart';
 
 class MainNavigation extends StatefulWidget {
   final Widget child;
+
   const MainNavigation({super.key, required this.child});
 
   @override
@@ -14,12 +16,19 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
-  final _tabs = ['/', '/cart', '/orders', '/admin'];
   int _currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AdminAuthProvider>();
+
+    // ✅ dynamic tabs (FIX)
+    final List<String> tabs = [
+      '/',
+      '/cart',
+      '/orders',
+      if (auth.isAdmin) '/admin',
+    ];
 
     return Scaffold(
       body: widget.child,
@@ -30,7 +39,7 @@ class _MainNavigationState extends State<MainNavigation> {
         type: BottomNavigationBarType.fixed,
         onTap: (index) {
           setState(() => _currentIndex = index);
-          context.go(_tabs[index]);
+          context.go(tabs[index]);
         },
         items: [
           const BottomNavigationBarItem(

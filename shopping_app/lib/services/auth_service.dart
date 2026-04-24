@@ -8,13 +8,16 @@ class AuthService {
   // 🔁 Auth state stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // 👤 current user
+  // 👤 Current user
   User? get currentUser => _auth.currentUser;
 
-  // 🔐 admin check
+  // 🔐 Admin check (SAFE + CASE INSENSITIVE)
   bool get isAdmin {
     final user = _auth.currentUser;
-    return user != null && user.email == adminEmail;
+
+    if (user == null || user.email == null) return false;
+
+    return user.email!.trim().toLowerCase() == adminEmail.trim().toLowerCase();
   }
 
   // 🔑 LOGIN
@@ -26,6 +29,8 @@ class AuthService {
       );
     } on FirebaseAuthException catch (e) {
       throw _errorMessage(e);
+    } catch (e) {
+      throw "Unexpected error: $e";
     }
   }
 
@@ -38,12 +43,18 @@ class AuthService {
       );
     } on FirebaseAuthException catch (e) {
       throw _errorMessage(e);
+    } catch (e) {
+      throw "Unexpected error: $e";
     }
   }
 
   // 🚪 SIGN OUT
   Future<void> signOut() async {
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      throw "Sign out failed: $e";
+    }
   }
 
   // ❌ ERROR HANDLER
@@ -59,6 +70,10 @@ class AuthService {
         return 'Password should be at least 6 characters';
       case 'invalid-email':
         return 'Invalid email address';
+      case 'user-disabled':
+        return 'This account has been disabled';
+      case 'too-many-requests':
+        return 'Too many attempts. Try again later';
       default:
         return e.message ?? 'Authentication error';
     }

@@ -21,11 +21,9 @@ final AuthService authService = AuthService();
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
 
-  // ✅ FIXED: no GoRouterRefreshStream (prevents red line + version crash)
-
+  // 🔥 AUTH REDIRECT LOGIC (FIXED)
   redirect: (context, state) {
     final user = FirebaseAuth.instance.currentUser;
-    final isAdmin = authService.isAdmin;
 
     final location = state.matchedLocation;
 
@@ -42,18 +40,20 @@ final GoRouter appRouter = GoRouter(
 
     final isProtected = protectedRoutes.contains(location);
 
-    // 🔒 ADMIN PROTECTION
+    final isAdmin = authService.isAdmin;
+
+    // 🔒 ADMIN ONLY ROUTES
     if (isAdminRoute) {
       if (user == null) return '/login';
       if (!isAdmin) return '/';
     }
 
-    // 🔒 USER PROTECTION
+    // 🔒 USER PROTECTED ROUTES
     if (isProtected && user == null) {
       return '/login';
     }
 
-    // 🔁 BLOCK LOGIN/SIGNUP IF ALREADY LOGGED IN
+    // 🔁 IF LOGGED IN → BLOCK LOGIN/SIGNUP
     if ((isLogin || isSignup) && user != null) {
       return '/';
     }
@@ -90,13 +90,13 @@ final GoRouter appRouter = GoRouter(
       ),
     ),
 
-    // 📦 ORDERS LIST
+    // 📦 ORDERS
     GoRoute(
       path: '/orders',
       builder: (context, state) => const OrdersPage(),
     ),
 
-    // 📦 ORDER DETAILS
+    // 📄 ORDER DETAILS
     GoRoute(
       path: '/order/:id',
       builder: (context, state) => OrderDetailsPage(

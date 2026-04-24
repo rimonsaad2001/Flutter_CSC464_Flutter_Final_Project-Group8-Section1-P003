@@ -1,5 +1,3 @@
-// lib/pages/checkout_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -29,7 +27,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   bool _loading = false;
   bool _loadingUser = true;
 
-  final user = FirebaseAuth.instance.currentUser;
+  User? get user => FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
@@ -37,9 +35,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _loadUserData();
   }
 
-  /// ✅ AUTO FILL USER INFO IF LOGGED IN
+  /// ✅ AUTO-FILL USER DATA FROM FIRESTORE
   Future<void> _loadUserData() async {
-    if (user == null) {
+    final currentUser = user;
+
+    if (currentUser == null) {
       setState(() => _loadingUser = false);
       return;
     }
@@ -47,7 +47,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     try {
       final doc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(user!.uid)
+          .doc(currentUser.uid)
           .get();
 
       if (doc.exists) {
@@ -69,14 +69,31 @@ class _CheckoutPageState extends State<CheckoutPage> {
     super.dispose();
   }
 
+  /// 🚀 PLACE ORDER
   Future<void> _placeOrder() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final currentUser = user;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please login first")),
+      );
+      return;
+    }
 
     setState(() => _loading = true);
 
     try {
       final cartService = CartService();
       final cartSnapshot = await cartService.getCartItems().first;
+
+      if (cartSnapshot.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Cart is empty")),
+        );
+        setState(() => _loading = false);
+        return;
+      }
 
       final items = cartSnapshot.docs.map((d) {
         final data = d.data() as Map<String, dynamic>;
@@ -89,7 +106,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       }).toList();
 
       await context.read<OrderProvider>().placeOrder({
-        'userId': user?.uid, // 🔥 IMPORTANT FIX
+        'userId': currentUser.uid,
         'customerName': _nameController.text.trim(),
         'customerPhone': _phoneController.text.trim(),
         'customerAddress': _addressController.text.trim(),
@@ -111,8 +128,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
-                context.go('/');
+                Navigator.of(context).pop(); // close dialog
+                context.go('/'); // go home
               },
               child: const Text('OK'),
             ),
@@ -120,7 +137,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
       );
     } catch (e) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -150,6 +166,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           key: _formKey,
           child: Column(
             children: [
+              // TOTAL BOX
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -166,7 +183,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 20),
+
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -176,7 +195,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Required' : null,
               ),
+
               const SizedBox(height: 10),
+
               TextFormField(
                 controller: _phoneController,
                 decoration: const InputDecoration(
@@ -186,7 +207,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Required' : null,
               ),
+
               const SizedBox(height: 10),
+
               TextFormField(
                 controller: _addressController,
                 maxLines: 3,
@@ -197,7 +220,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Required' : null,
               ),
+
               const Spacer(),
+
               SizedBox(
                 width: double.infinity,
                 height: 50,

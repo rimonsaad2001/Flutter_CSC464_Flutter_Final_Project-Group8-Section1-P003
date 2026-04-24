@@ -5,7 +5,7 @@ class ProductModel {
   final String name;
   final double price;
   final String description;
-  final String imageUrl;
+  final String image;
   final String category;
 
   const ProductModel({
@@ -13,7 +13,7 @@ class ProductModel {
     required this.name,
     required this.price,
     required this.description,
-    required this.imageUrl,
+    required this.image,
     required this.category,
   });
 
@@ -23,7 +23,7 @@ class ProductModel {
       name: data['name'] ?? '',
       price: _parseDouble(data['price']),
       description: data['description'] ?? '',
-      imageUrl: data['imageUrl'] ?? '',
+      image: data['image'] ?? '',
       category: data['category'] ?? 'Others',
     );
   }
@@ -33,26 +33,9 @@ class ProductModel {
       'name': name,
       'price': price,
       'description': description,
-      'imageUrl': imageUrl,
+      'image': image,
       'category': category,
     };
-  }
-
-  ProductModel copyWith({
-    String? name,
-    double? price,
-    String? description,
-    String? imageUrl,
-    String? category,
-  }) {
-    return ProductModel(
-      id: id,
-      name: name ?? this.name,
-      price: price ?? this.price,
-      description: description ?? this.description,
-      imageUrl: imageUrl ?? this.imageUrl,
-      category: category ?? this.category,
-    );
   }
 }
 

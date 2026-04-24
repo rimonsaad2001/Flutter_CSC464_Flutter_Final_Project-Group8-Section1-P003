@@ -1,7 +1,6 @@
 // lib/widgets/cart_item_widget.dart
 
 import 'package:flutter/material.dart';
-
 import '../models/cart_model.dart';
 
 class CartItemWidget extends StatelessWidget {
@@ -28,7 +27,7 @@ class CartItemWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 10,
             spreadRadius: 2,
           ),
@@ -36,7 +35,7 @@ class CartItemWidget extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Image
+          // IMAGE
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Image.network(
@@ -56,7 +55,7 @@ class CartItemWidget extends StatelessWidget {
 
           const SizedBox(width: 12),
 
-          // Details
+          // DETAILS
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,10 +86,10 @@ class CartItemWidget extends StatelessWidget {
             ),
           ),
 
-          // Quantity controls
+          // QUANTITY CONTROLS
           Container(
             decoration: BoxDecoration(
-              color: Colors.deepPurple.withValues(alpha: 0.08),
+              color: Colors.deepPurple.withOpacity(0.08),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -117,7 +116,7 @@ class CartItemWidget extends StatelessWidget {
 
           const SizedBox(width: 4),
 
-          // Delete
+          // DELETE
           IconButton(
             onPressed: onRemove,
             icon: const Icon(Icons.delete, color: Colors.red),

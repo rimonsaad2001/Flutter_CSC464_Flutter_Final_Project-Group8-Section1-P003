@@ -1,5 +1,6 @@
 // lib/pages/product_details_page.dart
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -18,75 +19,41 @@ class ProductDetailsPage extends StatefulWidget {
 }
 
 class _ProductDetailsPageState extends State<ProductDetailsPage> {
-  bool _addingToCart = false;
+  bool _loading = false;
 
   Future<void> _addToCart(ProductModel product) async {
-    setState(() => _addingToCart = true);
+    setState(() => _loading = true);
 
-    try {
-      await context.read<CartProvider>().addToCart(
-        product.id,
-        {
-          'productId': product.id,
-          'name': product.name,
-          'price': product.price,
-          'imageUrl': product.imageUrl,
-          'quantity': 1,
-        },
-      );
+    await context.read<CartProvider>().addToCart(product.id, {
+      'productId': product.id,
+      'name': product.name,
+      'price': product.price,
+      'image': product.image,
+      'quantity': 1,
+    });
 
-      if (!mounted) return;
+    setState(() => _loading = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${product.name} added to cart'),
-          backgroundColor: Colors.deepPurple,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _addingToCart = false);
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("${product.name} added to cart")),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance
             .collection('products')
             .doc(widget.productId)
             .get(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError ||
-              !snapshot.hasData ||
-              !snapshot.data!.exists) {
-            return Scaffold(
-              appBar: AppBar(
-                backgroundColor: Colors.deepPurple,
-                foregroundColor: Colors.white,
-                leading: IconButton(
-                  icon: const Icon(Icons.home),
-                  onPressed: () => context.go('/'),
-                ),
-              ),
-              body: const Center(child: Text('Product not found')),
-            );
+          if (!snapshot.data!.exists) {
+            return const Center(child: Text("Product not found"));
           }
 
           final product = ProductModel.fromMap(
@@ -96,139 +63,64 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
           return CustomScrollView(
             slivers: [
-              // 🔥 Sliver App Bar with Home Button
               SliverAppBar(
                 expandedHeight: 280,
                 pinned: true,
                 backgroundColor: Colors.deepPurple,
-                foregroundColor: Colors.white,
                 leading: IconButton(
                   icon: const Icon(Icons.home),
-                  tooltip: 'Go to Home',
                   onPressed: () => context.go('/'),
                 ),
                 flexibleSpace: FlexibleSpaceBar(
-                  title: Text(
-                    product.name,
-                    style: const TextStyle(fontSize: 14),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  background: Image.network(
-                    product.imageUrl.isNotEmpty
-                        ? product.imageUrl
-                        : 'https://picsum.photos/300',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const ColoredBox(
-                      color: Colors.grey,
-                      child: Icon(
-                        Icons.image_not_supported,
-                        size: 60,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+                  title: Text(product.name),
+                  background: _buildImage(product.image),
                 ),
               ),
-
-              // Content
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        product.name,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.deepPurple.shade50,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          product.category,
-                          style: TextStyle(
-                            color: Colors.deepPurple.shade700,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        '৳ ${product.price.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontSize: 22,
-                          color: Colors.deepPurple,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Description',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        product.description.isNotEmpty
-                            ? product.description
-                            : 'No description available',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          color: Colors.grey,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
+                      Text(product.name,
+                          style: const TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold)),
+                      Text("৳ ${product.price}"),
+                      const SizedBox(height: 10),
+                      Text(product.description),
+                      const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
+                        child: ElevatedButton(
                           onPressed:
-                              _addingToCart ? null : () => _addToCart(product),
-                          icon: _addingToCart
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.shopping_cart),
-                          label: Text(
-                            _addingToCart ? 'Adding...' : 'Add to cart',
-                          ),
+                              _loading ? null : () => _addToCart(product),
+                          child: Text(_loading ? "Adding..." : "Add to Cart"),
                         ),
-                      ),
+                      )
                     ],
                   ),
                 ),
-              ),
+              )
             ],
           );
         },
       ),
     );
+  }
+
+  Widget _buildImage(String image) {
+    if (image.isEmpty) {
+      return Image.network('https://picsum.photos/400', fit: BoxFit.cover);
+    }
+
+    if (image.startsWith('http')) {
+      return Image.network(image, fit: BoxFit.cover);
+    }
+
+    try {
+      return Image.memory(base64Decode(image), fit: BoxFit.cover);
+    } catch (_) {
+      return Image.network('https://picsum.photos/400');
+    }
   }
 }

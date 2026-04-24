@@ -15,18 +15,21 @@ class CartModel {
     required this.imageUrl,
   });
 
+  // 💰 total price
   double get total => price * quantity;
 
+  // ================= FROM MAP =================
   factory CartModel.fromMap(String id, Map<String, dynamic> data) {
     return CartModel(
       productId: id,
       name: data['name'] ?? '',
       price: _parseDouble(data['price']),
-      quantity: data['quantity'] ?? 1,
+      quantity: (data['quantity'] ?? 1) as int,
       imageUrl: data['imageUrl'] ?? '',
     );
   }
 
+  // ================= TO MAP =================
   Map<String, dynamic> toMap() {
     return {
       'productId': productId,
@@ -37,6 +40,7 @@ class CartModel {
     };
   }
 
+  // ================= COPY WITH =================
   CartModel copyWith({
     String? productId,
     String? name,
@@ -54,7 +58,7 @@ class CartModel {
   }
 }
 
-// Handles Firestore returning price as int or double
+// ================= SAFE PARSER =================
 double _parseDouble(dynamic value) {
   if (value == null) return 0.0;
   if (value is double) return value;

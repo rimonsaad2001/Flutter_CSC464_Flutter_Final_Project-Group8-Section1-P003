@@ -1,31 +1,75 @@
-// lib/providers/admin_auth_provider.dart
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/auth_service.dart';
 
 class AdminAuthProvider extends ChangeNotifier {
-  final AuthService _authService = AuthService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  User? get currentUser => _authService.currentUser;
-  bool get isAdmin => _authService.isAdmin;
-  bool get isLoggedIn => currentUser != null;
+  User? _user;
+  bool _isAdmin = false;
+
+  User? get currentUser => _user;
+  bool get isAdmin => _isAdmin;
+  bool get isLoggedIn => _user != null;
 
   AdminAuthProvider() {
-    _authService.authStateChanges.listen((_) {
+    _auth.authStateChanges().listen((user) {
+      _user = user;
+      _loadUserRole(user);
       notifyListeners();
     });
   }
 
+  // 🔥 ROLE SYSTEM (currently default = user)
+  Future<void> _loadUserRole(User? user) async {
+    if (user == null) {
+      _isAdmin = false;
+      notifyListeners();
+      return;
+    }
+
+    // ✅ SIMPLE FIRESTORE-FREE VERSION (CURRENT)
+    // Everyone is user by default
+    _isAdmin = false;
+
+    notifyListeners();
+  }
+
+  // 🔐 LOGIN
   Future<void> signIn(String email, String password) async {
-    await _authService.signIn(email, password);
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
+    } catch (e) {
+      debugPrint("SignIn error: $e");
+      rethrow;
+    }
   }
 
+  // 🆕 SIGNUP
   Future<void> signUp(String email, String password) async {
-    await _authService.signUp(email, password);
+    try {
+      await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
+    } catch (e) {
+      debugPrint("SignUp error: $e");
+      rethrow;
+    }
   }
 
+  // 🚪 SIGNOUT
   Future<void> signOut() async {
-    await _authService.signOut();
+    try {
+      await _auth.signOut();
+      _user = null;
+      _isAdmin = false;
+      notifyListeners();
+    } catch (e) {
+      debugPrint("SignOut error: $e");
+      rethrow;
+    }
   }
 }

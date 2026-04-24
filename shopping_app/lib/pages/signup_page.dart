@@ -45,7 +45,7 @@ class _SignupPageState extends State<SignupPage> {
     try {
       final auth = context.read<AdminAuthProvider>();
 
-      // 🔐 Firebase Auth Signup
+      // 🔐 Create account
       await auth.signUp(
         _email.text.trim(),
         _password.text.trim(),
@@ -53,19 +53,27 @@ class _SignupPageState extends State<SignupPage> {
 
       final user = FirebaseAuth.instance.currentUser;
 
-      // 💾 Save user data to Firestore
-      await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
+      if (user == null) {
+        throw Exception("User creation failed");
+      }
+
+      // 💾 Save user profile
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'name': _name.text.trim(),
         'email': _email.text.trim(),
         'phone': _phone.text.trim(),
         'address': _address.text.trim(),
         'photoUrl': '',
+        'role': 'user', // 🔥 IMPORTANT for future admin system
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       if (!mounted) return;
 
-      // 🚀 Go to profile
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Account created successfully")),
+      );
+
       context.go('/profile');
     } catch (e) {
       if (!mounted) return;
@@ -96,15 +104,8 @@ class _SignupPageState extends State<SignupPage> {
           key: _formKey,
           child: Column(
             children: [
-              const Icon(
-                Icons.person_add,
-                size: 80,
-                color: Colors.deepPurple,
-              ),
-
+              const Icon(Icons.person_add, size: 80, color: Colors.deepPurple),
               const SizedBox(height: 24),
-
-              // 👤 Name
               TextFormField(
                 controller: _name,
                 decoration: const InputDecoration(
@@ -115,10 +116,7 @@ class _SignupPageState extends State<SignupPage> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Enter your name' : null,
               ),
-
               const SizedBox(height: 16),
-
-              // 📧 Email
               TextFormField(
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
@@ -130,10 +128,7 @@ class _SignupPageState extends State<SignupPage> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Enter email' : null,
               ),
-
               const SizedBox(height: 16),
-
-              // 📱 Phone
               TextFormField(
                 controller: _phone,
                 keyboardType: TextInputType.phone,
@@ -145,10 +140,7 @@ class _SignupPageState extends State<SignupPage> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Enter phone' : null,
               ),
-
               const SizedBox(height: 16),
-
-              // 📍 Address
               TextFormField(
                 controller: _address,
                 decoration: const InputDecoration(
@@ -159,10 +151,7 @@ class _SignupPageState extends State<SignupPage> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Enter address' : null,
               ),
-
               const SizedBox(height: 16),
-
-              // 🔒 Password
               TextFormField(
                 controller: _password,
                 obscureText: _obscure,
@@ -182,10 +171,7 @@ class _SignupPageState extends State<SignupPage> {
                   return null;
                 },
               ),
-
               const SizedBox(height: 24),
-
-              // 🚀 Signup Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -193,23 +179,16 @@ class _SignupPageState extends State<SignupPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
                   ),
                   onPressed: _loading ? null : _signup,
                   child: _loading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Sign Up',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                      ? const CircularProgressIndicator(
+                          color: Colors.white,
+                        )
+                      : const Text('Sign Up'),
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // 🔁 Back to login
               TextButton(
                 onPressed: () => context.go('/login'),
                 child: const Text(

@@ -27,7 +27,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: const Color(0xfff5f6fa),
 
-      // 🔥 APP BAR (WITH PROFILE BUTTON)
+      // ================= APP BAR =================
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.deepPurple,
@@ -37,46 +37,40 @@ class _HomePageState extends State<HomePage> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
-          // 👤 PROFILE BUTTON (NEW)
           IconButton(
             icon: const Icon(Icons.person),
             tooltip: 'Profile',
             onPressed: () => context.go('/profile'),
           ),
-
-          // 🧾 ORDERS
           IconButton(
             icon: const Icon(Icons.receipt_long),
-            tooltip: 'My Orders',
+            tooltip: 'Orders',
             onPressed: () => context.go('/orders'),
           ),
-
-          // 🛒 CART
           IconButton(
             icon: const Icon(Icons.shopping_cart),
             tooltip: 'Cart',
             onPressed: () => context.go('/cart'),
           ),
-
-          // 👨‍💼 ADMIN / LOGIN
           if (auth.isAdmin)
             IconButton(
               icon: const Icon(Icons.admin_panel_settings),
-              tooltip: 'Admin Panel',
+              tooltip: 'Admin',
               onPressed: () => context.go('/admin'),
             )
           else
             IconButton(
               icon: const Icon(Icons.login),
-              tooltip: 'Admin Login',
+              tooltip: 'Login',
               onPressed: () => context.go('/login'),
             ),
         ],
       ),
 
+      // ================= BODY =================
       body: Column(
         children: [
-          // 🔍 SEARCH
+          // SEARCH BAR
           Container(
             color: Colors.deepPurple,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -98,7 +92,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // 🎯 BANNER
+          // BANNER
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -126,7 +120,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // 🛍 PRODUCTS
+          // ================= PRODUCTS =================
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: productProvider.products,
@@ -145,9 +139,16 @@ class _HomePageState extends State<HomePage> {
                             (data['name'] ?? '').toString().toLowerCase();
                         final category =
                             (data['category'] ?? '').toString().toLowerCase();
+
                         return name.contains(_searchQuery) ||
                             category.contains(_searchQuery);
                       }).toList();
+
+                if (docs.isEmpty) {
+                  return const Center(
+                    child: Text("No products found"),
+                  );
+                }
 
                 return GridView.builder(
                   padding: const EdgeInsets.all(12),
@@ -174,26 +175,28 @@ class _HomePageState extends State<HomePage> {
                             BoxShadow(
                               color: Colors.black.withOpacity(0.08),
                               blurRadius: 10,
-                              spreadRadius: 2,
                             ),
                           ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // IMAGE
                             ClipRRect(
                               borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(18),
                               ),
                               child: Image.network(
-                                product.imageUrl.isNotEmpty
-                                    ? product.imageUrl
+                                product.image.isNotEmpty
+                                    ? product.image
                                     : 'https://picsum.photos/300',
                                 height: 130,
                                 width: double.infinity,
                                 fit: BoxFit.cover,
                               ),
                             ),
+
+                            // NAME
                             Padding(
                               padding: const EdgeInsets.all(8),
                               child: Text(
@@ -201,9 +204,12 @@ class _HomePageState extends State<HomePage> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
+
+                            // PRICE
                             Padding(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 8),

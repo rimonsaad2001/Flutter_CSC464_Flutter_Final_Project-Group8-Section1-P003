@@ -1,11 +1,10 @@
 // lib/pages/admin_page.dart
 
-import 'dart:io';
+import 'dart:convert';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
+import 'dart:html' as html;
+
 import 'package:flutter/material.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 
 import '../services/product_service.dart';
@@ -19,15 +18,15 @@ class AdminPage extends StatefulWidget {
 
 class _AdminPageState extends State<AdminPage> {
   final _formKey = GlobalKey<FormState>();
+
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
   final _descController = TextEditingController();
   final _categoryController = TextEditingController();
+  final _imageUrlController = TextEditingController();
 
   final ProductService _productService = ProductService();
-  final ImagePicker _picker = ImagePicker();
 
-  File? _imageFile;
   Uint8List? _imageBytes;
   bool _loading = false;
 
@@ -37,40 +36,51 @@ class _AdminPageState extends State<AdminPage> {
     _priceController.dispose();
     _descController.dispose();
     _categoryController.dispose();
+    _imageUrlController.dispose();
     super.dispose();
   }
 
+  // ✅ WEB IMAGE PICKER
   Future<void> _pickImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      if (kIsWeb) {
-        final bytes = await picked.readAsBytes();
-        setState(() => _imageBytes = bytes);
-      } else {
-        setState(() => _imageFile = File(picked.path));
-      }
-    }
+    final uploadInput = html.FileUploadInputElement();
+    uploadInput.accept = 'image/*';
+    uploadInput.click();
+
+    uploadInput.onChange.listen((event) {
+      final file = uploadInput.files!.first;
+      final reader = html.FileReader();
+
+      reader.readAsArrayBuffer(file);
+
+      reader.onLoadEnd.listen((event) {
+        setState(() {
+          _imageBytes = reader.result as Uint8List;
+          _imageUrlController.clear();
+        });
+      });
+    });
   }
 
-  Future<String> _uploadImage() async {
-    final fileName = DateTime.now().millisecondsSinceEpoch.toString();
-    final ref =
-        FirebaseStorage.instance.ref().child('products').child(fileName);
-
-    if (kIsWeb) {
-      await ref.putData(_imageBytes!);
-    } else {
-      await ref.putFile(_imageFile!);
+  String? _getImageData() {
+    if (_imageBytes != null) {
+      return base64Encode(_imageBytes!);
     }
-    return ref.getDownloadURL();
+
+    if (_imageUrlController.text.trim().isNotEmpty) {
+      return _imageUrlController.text.trim();
+    }
+
+    return null;
   }
 
   Future<void> _saveProduct() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_imageFile == null && _imageBytes == null) {
+    final imageData = _getImageData();
+
+    if (imageData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a product image')),
+        const SnackBar(content: Text('Please add image or image URL')),
       );
       return;
     }
@@ -78,14 +88,13 @@ class _AdminPageState extends State<AdminPage> {
     setState(() => _loading = true);
 
     try {
-      final imageUrl = await _uploadImage();
-
       await _productService.addProduct({
         'name': _nameController.text.trim(),
         'price': double.parse(_priceController.text.trim()),
         'description': _descController.text.trim(),
         'category': _categoryController.text.trim(),
-        'imageUrl': imageUrl,
+        'image': imageData,
+        'createdAt': DateTime.now(),
       });
 
       if (!mounted) return;
@@ -98,12 +107,14 @@ class _AdminPageState extends State<AdminPage> {
       _priceController.clear();
       _descController.clear();
       _categoryController.clear();
+      _imageUrlController.clear();
+
       setState(() {
-        _imageFile = null;
         _imageBytes = null;
       });
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -139,7 +150,7 @@ class _AdminPageState extends State<AdminPage> {
 
               const SizedBox(height: 20),
 
-              // Image picker
+              // 📸 IMAGE PICKER
               GestureDetector(
                 onTap: _pickImage,
                 child: Container(
@@ -147,30 +158,37 @@ class _AdminPageState extends State<AdminPage> {
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.deepPurple),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: _imageBytes != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: Image.memory(_imageBytes!, fit: BoxFit.cover),
                         )
-                      : _imageFile != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.file(_imageFile!, fit: BoxFit.cover),
-                            )
-                          : const Center(
-                              child: Icon(
-                                Icons.add_a_photo,
-                                size: 50,
-                                color: Colors.deepPurple,
-                              ),
-                            ),
+                      : const Center(
+                          child: Icon(Icons.add_a_photo,
+                              size: 50, color: Colors.deepPurple),
+                        ),
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
+
+              const Text("OR use image URL",
+                  style: TextStyle(color: Colors.grey)),
+
+              const SizedBox(height: 10),
+
+              TextFormField(
+                controller: _imageUrlController,
+                decoration: const InputDecoration(
+                  labelText: 'Image URL',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 10),
 
               TextFormField(
                 controller: _nameController,
@@ -191,13 +209,9 @@ class _AdminPageState extends State<AdminPage> {
                   labelText: 'Price',
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Required';
-                  if (double.tryParse(v.trim()) == null) {
-                    return 'Enter a valid number';
-                  }
-                  return null;
-                },
+                validator: (v) => v == null || double.tryParse(v) == null
+                    ? 'Enter valid price'
+                    : null,
               ),
 
               const SizedBox(height: 10),
@@ -205,7 +219,7 @@ class _AdminPageState extends State<AdminPage> {
               TextFormField(
                 controller: _categoryController,
                 decoration: const InputDecoration(
-                  labelText: 'Category (e.g. Clothes, Shoes, Electronics)',
+                  labelText: 'Category',
                   border: OutlineInputBorder(),
                 ),
                 validator: (v) =>
@@ -238,7 +252,7 @@ class _AdminPageState extends State<AdminPage> {
                   onPressed: _loading ? null : _saveProduct,
                   child: _loading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Upload product'),
+                      : const Text('Upload Product'),
                 ),
               ),
             ],

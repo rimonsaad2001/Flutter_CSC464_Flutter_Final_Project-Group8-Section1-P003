@@ -1,5 +1,3 @@
-// lib/pages/cart_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
@@ -15,9 +13,11 @@ class CartPage extends StatelessWidget {
   double _calculateTotal(List<QueryDocumentSnapshot> docs) {
     return docs.fold(0.0, (sum, d) {
       final data = d.data() as Map<String, dynamic>;
+
       final price = (data['price'] ?? 0).toDouble();
-      final qty = (data['quantity'] ?? 1) as int;
-      return sum + price * qty;
+      final qty = (data['quantity'] ?? 1).toInt();
+
+      return sum + (price * qty);
     });
   }
 
@@ -70,6 +70,8 @@ class CartPage extends StatelessWidget {
             );
           }
 
+          final total = _calculateTotal(items);
+
           return Column(
             children: [
               Expanded(
@@ -78,6 +80,7 @@ class CartPage extends StatelessWidget {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final doc = items[index];
+
                     final cart = CartModel.fromMap(
                       doc.id,
                       doc.data() as Map<String, dynamic>,
@@ -105,14 +108,14 @@ class CartPage extends StatelessWidget {
                 ),
               ),
 
-              // Checkout bar
+              // CHECKOUT BAR
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: Colors.black.withOpacity(0.1),
                       blurRadius: 10,
                     ),
                   ],
@@ -130,7 +133,7 @@ class CartPage extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '৳ ${_calculateTotal(items).toStringAsFixed(0)}',
+                          '৳ ${total.toStringAsFixed(0)}',
                           style: const TextStyle(
                             fontSize: 18,
                             color: Colors.deepPurple,
@@ -153,7 +156,7 @@ class CartPage extends StatelessWidget {
                         ),
                         onPressed: () => context.go(
                           '/checkout',
-                          extra: _calculateTotal(items),
+                          extra: total,
                         ),
                         child: const Text(
                           'Proceed to checkout',

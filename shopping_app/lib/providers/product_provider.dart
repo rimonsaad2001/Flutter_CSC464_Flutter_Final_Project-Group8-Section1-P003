@@ -1,5 +1,3 @@
-// lib/providers/product_provider.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -14,7 +12,7 @@ class ProductProvider extends ChangeNotifier {
     try {
       await _productService.addProduct({
         ...data,
-        'createdAt': DateTime.now().toIso8601String(),
+        'createdAt': FieldValue.serverTimestamp(), // ✅ FIXED
       });
     } catch (e) {
       debugPrint('ProductProvider.addProduct error: $e');

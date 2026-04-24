@@ -1,5 +1,3 @@
-// lib/pages/orders_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -42,19 +40,26 @@ class OrdersPage extends StatelessWidget {
     String orderId,
     String newStatus,
   ) async {
-    await FirebaseFirestore.instance
-        .collection('orders')
-        .doc(orderId)
-        .update({'status': newStatus});
+    try {
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(orderId)
+          .update({'status': newStatus});
 
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Status updated to ${newStatus.toUpperCase()}'),
-        backgroundColor: Colors.green,
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Status updated to ${newStatus.toUpperCase()}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Update failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -82,15 +87,20 @@ class OrdersPage extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: _getOrdersStream(isAdmin, user.uid),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final docs = snapshot.data!.docs;
-
-          if (docs.isEmpty) {
-            return const Center(child: Text('No orders yet'));
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text(
+                'No orders yet',
+                style: TextStyle(color: Colors.grey),
+              ),
+            );
           }
+
+          final docs = snapshot.data!.docs;
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),
@@ -103,16 +113,20 @@ class OrdersPage extends StatelessWidget {
 
               final color = _statusColor(order.status);
 
-              return GestureDetector(
-                onTap: () {
-                  context.go('/order/${order.id}');
-                },
+              return InkWell(
+                onTap: () => context.go('/order/${order.id}'),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                      )
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,31 +137,65 @@ class OrdersPage extends StatelessWidget {
                         children: [
                           Text(
                             'Order #${order.id.substring(0, 6).toUpperCase()}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: color.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               order.status.toUpperCase(),
-                              style: TextStyle(color: color),
+                              style: TextStyle(
+                                color: color,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ],
                       ),
 
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
 
                       Text(order.customerName),
                       Text(order.customerPhone),
 
                       const SizedBox(height: 10),
 
-                      Text('৳ ${order.total.toStringAsFixed(0)}'),
+                      Text(
+                        'Total: ৳ ${order.total.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      // ADMIN CONTROL
+                      if (isAdmin) ...[
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<String>(
+                          value: order.status,
+                          items: _statuses
+                              .map(
+                                (s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(s.toUpperCase()),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null && value != order.status) {
+                              _updateStatus(context, order.id, value);
+                            }
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -165,7 +213,7 @@ class OrdersPage extends StatelessWidget {
     if (isAdmin) {
       return collection.orderBy('createdAt', descending: true).snapshots();
     } else {
-      return collection.where('userId', isEqualTo: uid).snapshots(); // safe
+      return collection.where('userId', isEqualTo: uid).snapshots();
     }
   }
 }

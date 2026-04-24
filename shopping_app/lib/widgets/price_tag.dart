@@ -34,12 +34,16 @@ class PriceTag extends StatelessWidget {
     final effectiveColor = color ?? Colors.deepPurple;
 
     return RichText(
+      textScaler: MediaQuery.of(context).textScaler, // ✅ better accessibility
       text: TextSpan(
+        style: const TextStyle(
+          fontFamily: 'Roboto',
+        ),
         children: [
           TextSpan(
             text: '$currencySymbol ',
             style: TextStyle(
-              fontSize: _fontSize - 2,
+              fontSize: (_fontSize - 2).clamp(10, 100),
               color: effectiveColor,
               fontWeight: FontWeight.w500,
             ),

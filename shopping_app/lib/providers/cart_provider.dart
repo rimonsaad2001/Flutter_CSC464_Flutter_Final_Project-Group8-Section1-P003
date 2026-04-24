@@ -1,5 +1,3 @@
-// lib/providers/cart_provider.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -14,7 +12,7 @@ class CartProvider extends ChangeNotifier {
     try {
       await _cartService.addToCart(productId, data);
     } catch (e) {
-      debugPrint('CartProvider.addToCart error: $e');
+      debugPrint('addToCart error: $e');
       rethrow;
     }
   }
@@ -23,7 +21,7 @@ class CartProvider extends ChangeNotifier {
     try {
       await _cartService.updateCartItem(id, data);
     } catch (e) {
-      debugPrint('CartProvider.updateCartItem error: $e');
+      debugPrint('updateCartItem error: $e');
       rethrow;
     }
   }
@@ -32,7 +30,7 @@ class CartProvider extends ChangeNotifier {
     try {
       await _cartService.removeFromCart(id);
     } catch (e) {
-      debugPrint('CartProvider.removeFromCart error: $e');
+      debugPrint('removeFromCart error: $e');
       rethrow;
     }
   }
@@ -41,7 +39,7 @@ class CartProvider extends ChangeNotifier {
     try {
       await _cartService.clearCart();
     } catch (e) {
-      debugPrint('CartProvider.clearCart error: $e');
+      debugPrint('clearCart error: $e');
       rethrow;
     }
   }

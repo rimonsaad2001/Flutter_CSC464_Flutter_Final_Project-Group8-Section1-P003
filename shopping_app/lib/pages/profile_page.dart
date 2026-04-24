@@ -28,19 +28,33 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadUser();
   }
 
+  @override
+  void dispose() {
+    nameController.dispose();
+    phoneController.dispose();
+    addressController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadUser() async {
     if (user == null) return;
 
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user!.uid)
-        .get();
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .get();
 
-    if (doc.exists) {
-      final data = doc.data()!;
-      nameController.text = data['name'] ?? '';
-      phoneController.text = data['phone'] ?? '';
-      addressController.text = data['address'] ?? '';
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        setState(() {
+          nameController.text = data['name'] ?? '';
+          phoneController.text = data['phone'] ?? '';
+          addressController.text = data['address'] ?? '';
+        });
+      }
+    } catch (e) {
+      debugPrint("Load user error: $e");
     }
   }
 
@@ -49,26 +63,39 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => loading = true);
 
-    await FirebaseFirestore.instance.collection('users').doc(user!.uid).update({
-      'name': nameController.text.trim(),
-      'phone': phoneController.text.trim(),
-      'address': addressController.text.trim(),
-    });
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .update({
+        'name': nameController.text.trim(),
+        'phone': phoneController.text.trim(),
+        'address': addressController.text.trim(),
+      });
 
-    setState(() {
-      loading = false;
-      editing = false;
-    });
+      setState(() {
+        loading = false;
+        editing = false;
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Profile updated")),
-    );
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Profile updated")),
+      );
+    } catch (e) {
+      setState(() => loading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 
   Future<void> _deleteAccount() async {
-    try {
-      if (user == null) return;
+    if (user == null) return;
 
+    try {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user!.uid)
@@ -87,10 +114,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
-
     if (!mounted) return;
-
-    // 🔥 GO HOME AFTER LOGOUT
     context.go('/');
   }
 
@@ -112,15 +136,11 @@ class _ProfilePageState extends State<ProfilePage> {
         title: const Text("My Profile"),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
-
-        // 🏠 HOME BUTTON
         leading: IconButton(
           icon: const Icon(Icons.home),
           onPressed: () => context.go('/'),
         ),
-
         actions: [
-          // 🚪 LOGOUT BUTTON (GO HOME)
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
@@ -131,7 +151,7 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // 👤 PROFILE CARD
+            // ================= PROFILE CARD =================
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -221,7 +241,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
             const SizedBox(height: 10),
 
-            // 📦 ORDERS LIST
+            // ================= ORDERS =================
             StreamBuilder<QuerySnapshot>(
               stream: orderStream,
               builder: (context, snapshot) {
@@ -242,7 +262,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     return Card(
                       child: ListTile(
                         title: Text("Order #${doc.id.substring(0, 6)}"),
-                        subtitle: Text("Status: ${data['status']}"),
+                        subtitle:
+                            Text("Status: ${data['status'] ?? 'pending'}"),
                         trailing: const Icon(Icons.arrow_forward),
                         onTap: () => context.go('/orders'),
                       ),

@@ -1,5 +1,3 @@
-// lib/providers/order_provider.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -14,7 +12,7 @@ class OrderProvider extends ChangeNotifier {
     try {
       await _orderService.placeOrder({
         ...data,
-        'createdAt': DateTime.now().toIso8601String(),
+        'createdAt': FieldValue.serverTimestamp(), // ✅ FIXED
         'status': 'pending',
       });
     } catch (e) {
